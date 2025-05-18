@@ -16,14 +16,42 @@ Router.post('/register', (req, res) => {
 })
 
 Router.post('/login', (req, res) => {
-    const  { phone, password} = req.body;
-    const sql = "SELECT * FROM Patient WHERE phone=? AND password=?";
-    conn.query(sql, [phone, password], (err, result) => {
+    const { phone, password } = req.body;
+    
+    // First check the Patient table
+    const patientSql = "SELECT * FROM Patient WHERE phone=? AND password=?";
+    conn.query(patientSql, [phone, password], (err, patientResult) => {
         if(err){
-            res.status(500).json("server error")
+            return res.status(500).json("server error");
         }
-        res.status(200).json({message: "login sucessfully", user: result})  
-    })
-})
+        
+        if(patientResult.length > 0) {
+            return res.status(200).json({
+                message: "login successfully as patient", 
+                user: patientResult[0],
+                role: 'patient'
+            });
+        }
+        
+        // If not found in Patient table, check Admin table
+        const adminSql = "SELECT * FROM Admin WHERE phone=? AND password=?";
+        conn.query(adminSql, [phone, password], (err, adminResult) => {
+            if(err){
+                return res.status(500).json("server error");
+            }
+            
+            if(adminResult.length > 0) {
+                return res.status(200).json({
+                    message: "login successfully as admin", 
+                    user: adminResult[0],
+                    role: 'admin'
+                });
+            }
+            
+            // If not found in either table
+            return res.status(401).json({message: "Invalid phone or password"});
+        });
+    });
+});
 
 module.exports = Router
